@@ -8,5 +8,6 @@ pip install fastapi uvicorn
 pip install python-dotenv
 
 #Run Server
-uvicorn main:app --reload
+uvicorn app.main:app --reload
 ```
+
