@@ -8,4 +8,7 @@ services:
       - "8000:8000"
     volumes:
       - ./app:/app/app
+      - ./data:/app/data
     restart: unless-stopped
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/web_scraper.db

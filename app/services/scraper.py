@@ -1,35 +1,30 @@
 import httpx
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse
-import socket
-import ipaddress
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models.scrape import ScrapeResult
 
-def _validate_url(url: str) -> None:
-    parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
-        raise ValueError("Invalid URL format")
+async def scrape_and_save(url: str, db: AsyncSession) -> dict:
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(url)
+        r.raise_for_status()
 
-def _block_private_ip(url: str) -> None:
-    hostname = urlparse(url).hostname
-    ip = socket.gethostbyname(hostname)
-    if ipaddress.ip_address(ip).is_private:
-        raise ValueError("Private or internal IP not allowed")
+    soup = BeautifulSoup(r.text, "lxml")
 
-async def scrape_url_async(url: str) -> dict:
-    _validate_url(url)
-    _block_private_ip(url)
+    data = ScrapeResult(
+        url=url,
+        title=soup.title.string.strip() if soup.title else None,
+        total_links=len(soup.find_all("a"))
+    )
 
-    async with httpx.AsyncClient(
-        timeout=10,
-        headers={"User-Agent": "FastAPI-Scraper/1.0"}
-    ) as client:
-        response = await client.get(url)
-        response.raise_for_status()
-
-    soup = BeautifulSoup(response.text, "lxml")
+    print(f"Scraping URL: {url}")
+    print(f"Database session: {db}")
+    db.add(data)
+    await db.commit()
+    await db.refresh(data)
 
     return {
-        "url": url,
-        "title": soup.title.string.strip() if soup.title else None,
-        "total_links": len(soup.find_all("a"))
+        "id": data.id,
+        "url": data.url,
+        "title": data.title,
+        "total_links": data.total_links
     }
