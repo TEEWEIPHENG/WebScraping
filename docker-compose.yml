@@ -6,4 +6,6 @@ services:
     container_name: fastapi_scraper
     ports:
       - "8000:8000"
+    volumes:
+      - ./app:/app/app
     restart: unless-stopped
